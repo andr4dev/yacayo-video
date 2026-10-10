@@ -14,5 +14,5 @@ export default {
   root: raiz,
   plugins: [react(), tailwindcss()],
   resolve: { alias: { "@": path.join(raiz, "src") } },
-  server: { host: "localhost", port: 5174, strictPort: true },
+  server: { host: "localhost", port: 5180, strictPort: true },
 };

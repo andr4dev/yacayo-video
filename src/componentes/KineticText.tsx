@@ -18,6 +18,14 @@ type KineticTextProps = {
   alinear?: "center" | "left";
   tema?: "claro" | "oscuro";
   peso?: number;
+  /** Color del texto (las palabras que no son clave). */
+  colorTexto?: string;
+  /** Color de la palabra clave. */
+  colorClave?: string;
+  /** El subrayado de --yc-acento bajo la palabra clave. */
+  subrayado?: boolean;
+  /** Color de la moneda (sobre fondos oscuros, --yc-logo-moneda-negativo). */
+  colorMoneda?: string;
   /** La tilde de la "ó" de la palabra clave es la moneda que cae (y toca en este frame). */
   monedaToca?: number;
   style?: React.CSSProperties;
@@ -29,19 +37,23 @@ export const KineticText: React.FC<KineticTextProps> = ({
   texto,
   clave,
   tamano,
-  escalonado = 4,
+  escalonado = 5,
   duracion,
   alinear = "center",
   tema = "claro",
   peso = 700,
+  colorTexto: colorPropio,
+  colorClave: clavePropia,
+  subrayado: conSubrayado = true,
+  colorMoneda,
   monedaToca,
   style,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const palabras = texto.split(" ");
-  const colorTexto = tema === "claro" ? YC.texto : YC.textoInvertido;
-  const colorClave = tema === "claro" ? YC.primario : YC.textoInvertido;
+  const colorTexto = colorPropio ?? (tema === "claro" ? YC.texto : YC.textoInvertido);
+  const colorClave = clavePropia ?? (tema === "claro" ? YC.primario : YC.textoInvertido);
 
   return (
     <div
@@ -59,7 +71,7 @@ export const KineticText: React.FC<KineticTextProps> = ({
     >
       {palabras.map((palabra, i) => {
         const inicio = i * escalonado;
-        const e = spring({ frame: frame - inicio, fps, config: { damping: 200 }, durationInFrames: 14 });
+        const e = spring({ frame: frame - inicio, fps, config: { damping: 200 }, durationInFrames: 18 });
         const salida =
           duracion === undefined
             ? 0
@@ -85,10 +97,11 @@ export const KineticText: React.FC<KineticTextProps> = ({
                 margin: "-0.16em -0.05em -0.18em",
                 // El recorte: la palabra entra desde abajo. Con moneda, se abre hacia arriba
                 // para que la moneda pueda caer desde fuera.
-                clipPath: conMoneda ? "inset(-200vh -0.2em 0 -0.2em)" : "inset(0)",
+                // Ya adentro, la palabra con moneda se suelta del recorte para que la onda se vea.
+                clipPath: conMoneda ? (e > 0.999 ? "none" : "inset(-200vh -0.2em 0 -0.2em)") : "inset(0)",
               }}
             >
-              {esClave ? (
+              {esClave && conSubrayado ? (
                 <span
                   style={{
                     position: "absolute",
@@ -113,7 +126,7 @@ export const KineticText: React.FC<KineticTextProps> = ({
                   opacity: Math.min(1, e * 1.4) * (1 - salida),
                 }}
               >
-                {conMoneda ? <PalabraConMoneda palabra={palabra} toca={monedaToca} tamano={tamano} /> : palabra}
+                {conMoneda ? <PalabraConMoneda palabra={palabra} toca={monedaToca} tamano={tamano} color={colorMoneda} /> : palabra}
               </span>
             </span>
           </span>
@@ -124,7 +137,12 @@ export const KineticText: React.FC<KineticTextProps> = ({
 };
 
 /** "cayó?" → "cay" + "o" con la moneda como tilde + "?". */
-const PalabraConMoneda: React.FC<{ palabra: string; toca: number; tamano: number }> = ({ palabra, toca, tamano }) => {
+const PalabraConMoneda: React.FC<{ palabra: string; toca: number; tamano: number; color?: string }> = ({
+  palabra,
+  toca,
+  tamano,
+  color,
+}) => {
   const i = palabra.indexOf("ó");
   const d = tamano * 0.22;
   return (
@@ -133,10 +151,41 @@ const PalabraConMoneda: React.FC<{ palabra: string; toca: number; tamano: number
       <span style={{ position: "relative", display: "inline-block" }}>
         o
         <Sequence from={toca - TOQUE_MONEDA} layout="none">
-          <Moneda tamano={d} caida={tamano * 14} style={{ left: "50%", top: tamano * 0.02, marginLeft: -d * 0.3 }} />
+          <Moneda tamano={d} caida={tamano * 14} color={color} style={{ left: "50%", top: tamano * 0.02, marginLeft: -d * 0.3 }} />
+        </Sequence>
+        <Sequence from={toca} layout="none">
+          <OndaMoneda diametro={d} color={color ?? YC.logoMoneda} style={{ left: "50%", top: tamano * 0.02, marginLeft: -d * 0.3 }} />
         </Sequence>
       </span>
       {palabra.slice(i + 1)}
+    </>
+  );
+};
+
+/** La onda dorada que sale de la moneda cuando toca. */
+const OndaMoneda: React.FC<{ diametro: number; color: string; style: React.CSSProperties }> = ({ diametro, color, style }) => {
+  const frame = useCurrentFrame();
+  return (
+    <>
+      {[0, 6].map((retraso) => {
+        const t = interpolate(frame, [retraso, retraso + 18], [0, 1], { ...clamp, easing: Easing.out(Easing.cubic) });
+        return (
+          <span
+            key={retraso}
+            style={{
+              position: "absolute",
+              width: diametro,
+              height: diametro,
+              borderRadius: "50%",
+              border: `${diametro * 0.07}px solid ${color}`,
+              boxSizing: "border-box",
+              transform: `scale(${1 + 16 * t})`,
+              opacity: t > 0 ? 0.6 * (1 - t) : 0,
+              ...style,
+            }}
+          />
+        );
+      })}
     </>
   );
 };

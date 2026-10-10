@@ -17,13 +17,25 @@ import { CameraZoom } from "./componentes/CameraZoom";
 import { cajaMensaje } from "./componentes/chatGeometria";
 import { Confirmacion } from "./componentes/Confirmacion";
 import { FeatureCard } from "./componentes/FeatureCard";
-import { Fondo } from "./componentes/Fondo";
+import { Foco } from "./componentes/Foco";
+import { BrilloCierre, Fondo } from "./componentes/Fondo";
 import { KineticText } from "./componentes/KineticText";
 import { LogoAnimado } from "./componentes/LogoAnimado";
 import { PantallaCelular } from "./componentes/Pantallas";
 import { Phone, SombraPiso } from "./componentes/Phone";
-import { CIERRE, ESCENAS, MENSAJES, MONTAJE, MUSICA, TARJETAS, TITULARES } from "./constantes";
-import { type Layout, type Punto, ZOOMS, aCuadro, camara, layoutPara, poseCelular, proyectar } from "./escenario";
+import { Toque } from "./componentes/Toque";
+import { CIERRE, CONFIRMADOS, ESCENAS, MENSAJES, MUSICA, POR_REVISAR, TARJETAS, TITULARES } from "./constantes";
+import {
+  type Layout,
+  type Punto,
+  ZOOMS,
+  aCuadro,
+  camara,
+  desplazamientoConfirmados,
+  layoutPara,
+  poseCelular,
+  proyectar,
+} from "./escenario";
 import { FUENTE, YC } from "./marca";
 import zonas from "../public/screens/zonas.json";
 
@@ -44,9 +56,9 @@ export const YacayoDemo: React.FC = () => {
 
   return (
     <AbsoluteFill style={{ fontFamily: FUENTE, background: YC.fondoClaro, overflow: "hidden" }}>
-      <Fondo />
+      <Fondo luz={enCuadro({ x: 195, y: 422 })} escalaLuz={cam.s * pose.s} />
 
-      {/* 7 · Cierre: el fondo --yc-primario crece por detrás del celular, que se va. */}
+      {/* 9 · Cierre: el fondo --yc-primario crece por detrás del celular, que se va. */}
       <Sequence name="Cierre · fondo" from={CIERRE.fondo} premountFor={fps}>
         <CierreFondo L={L} />
       </Sequence>
@@ -59,6 +71,7 @@ export const YacayoDemo: React.FC = () => {
             <SombraPiso pose={pose} k={L.celular.k} cy={L.celular.cy} />
             <Phone pose={pose} k={L.celular.k} nitidez={cam.s}>
               <PantallaCelular />
+              <Foco />
             </Phone>
           </AbsoluteFill>
         </CameraZoom>
@@ -74,17 +87,32 @@ export const YacayoDemo: React.FC = () => {
         />
       ) : null}
 
-      {/* 1 · Gancho */}
+      {/* 1 · Gancho, sobre índigo: "cayó?" en dorado y un salto cuando la moneda toca */}
       <Sequence name="Gancho" from={TITULARES.ganchoA.desde} durationInFrames={TITULARES.ganchoA.hasta} premountFor={fps}>
         <AbsoluteFill style={{ justifyContent: "center", alignItems: "center", padding: 80 }}>
-          <div style={{ width: "100%", textAlign: "center" }}>
-            <KineticText texto={TITULARES.ganchoA.texto} tamano={96} duracion={TITULARES.ganchoA.hasta} />
+          <div
+            style={{
+              width: "100%",
+              textAlign: "center",
+              scale: interpolate(
+                frame,
+                [TITULARES.ganchoB.monedaToca, TITULARES.ganchoB.monedaToca + 3, TITULARES.ganchoB.monedaToca + 14],
+                [1, 1.06, 1],
+                clamp,
+              ),
+            }}
+          >
+            <KineticText texto={TITULARES.ganchoA.texto} tamano={96} tema="oscuro" duracion={TITULARES.ganchoA.hasta} />
             <Sequence from={TITULARES.ganchoB.desde} layout="none">
               <KineticText
                 texto={TITULARES.ganchoB.texto}
                 clave={TITULARES.ganchoB.clave}
                 monedaToca={TITULARES.ganchoB.monedaToca - TITULARES.ganchoB.desde}
                 tamano={96}
+                tema="oscuro"
+                colorClave={YC.acento}
+                subrayado={false}
+                colorMoneda={YC.logoMonedaNegativo}
                 duracion={TITULARES.ganchoB.hasta - TITULARES.ganchoB.desde}
               />
             </Sequence>
@@ -145,12 +173,65 @@ export const YacayoDemo: React.FC = () => {
       </Sequence>
       <Titular L={L} {...TITULARES.unaVez} />
 
-      {/* 6 · Montaje */}
-      {MONTAJE.map((m) => (
-        <Titular key={m.pantalla} L={L} texto={m.etiqueta} clave={m.clave} desde={m.desde} hasta={m.desde + 30} rapido />
-      ))}
+      {/* 6 · Inicio */}
+      <Titular L={L} {...TITULARES.inicio} />
 
-      {/* 7 · Cierre: logo, frase y dominio */}
+      {/* 7 · Por revisar: si hay dos pagos iguales, el dueño elige cuál era */}
+      <Titular L={L} {...TITULARES.dosPagos} />
+      <Titular L={L} {...TITULARES.eliges} />
+      <Sequence name="Toque · Es este" from={POR_REVISAR.toqueEsEste} durationInFrames={22} premountFor={fps}>
+        <Toque
+          tamano={L.formato === "vertical" ? 110 : 84}
+          centro={enCuadro(centroDe(zonas["por-revisar-detalle"].esEsteLaura))}
+        />
+      </Sequence>
+      <Sequence name="Toque · Confirmar" from={POR_REVISAR.toqueConfirmar} durationInFrames={22} premountFor={fps}>
+        <Toque
+          tamano={L.formato === "vertical" ? 110 : 84}
+          centro={enCuadro(centroDe(zonas["por-revisar-dialogo"].confirmar))}
+        />
+      </Sequence>
+      <Sequence
+        name="Pulso · Pago confirmado"
+        from={POR_REVISAR.confirmado + 4}
+        durationInFrames={ESCENAS.porRevisar.hasta - POR_REVISAR.confirmado - 4}
+        premountFor={fps}
+      >
+        <Confirmacion
+          tipo="cayo"
+          duracion={ESCENAS.porRevisar.hasta - POR_REVISAR.confirmado - 4}
+          tamano={L.formato === "vertical" ? 96 : 80}
+          centro={enCuadro({
+            x: zonas["por-revisar-confirmado"].aviso.x + zonas["por-revisar-confirmado"].aviso.w + 44,
+            y: zonas["por-revisar-confirmado"].aviso.y - 6,
+          })}
+        />
+      </Sequence>
+
+      {/* 8 · Quién lo confirmó (y por dónde): una píldora por fila, una por golpe */}
+      <Titular L={L} {...TITULARES.quien} arriba />
+      {CONFIRMADOS.filas.map((fila) => {
+        const c = zonas["ingresos-confirmados"][fila.id];
+        const ancla = enCuadro({ x: c.x + c.w + 6, y: c.y + c.h / 2 - desplazamientoConfirmados(frame) });
+        const duracion = ESCENAS.confirmados.hasta - fila.desde;
+        return (
+          <Sequence key={fila.id} name={`Píldora · ${fila.quien}`} from={fila.desde} durationInFrames={duracion} premountFor={fps}>
+            <FeatureCard
+              ancla={ancla}
+              centro={{ x: Math.max(L.xPildoras, ancla.x + 36), y: ancla.y }}
+              alinear="izquierda"
+              icono="check"
+              colorIcono={YC.verificado}
+              tamano={L.tamanoPildora}
+              duracion={duracion}
+            >
+              {fila.quien}
+            </FeatureCard>
+          </Sequence>
+        );
+      })}
+
+      {/* 9 · Cierre: logo, frase y dominio */}
       <Sequence name="Cierre" from={CIERRE.fondo} premountFor={fps}>
         <Cierre L={L} />
       </Sequence>
@@ -161,6 +242,7 @@ export const YacayoDemo: React.FC = () => {
 };
 
 const centroY = (c: { y: number; h: number }) => c.y + c.h / 2;
+const centroDe = (c: { x: number; y: number; w: number; h: number }): Punto => ({ x: c.x + c.w / 2, y: c.y + c.h / 2 });
 
 /** La esquina de arriba a la derecha de un mensaje del chat, en px del cuadro. */
 function esquinaMensaje(id: "cayo" | "yaUsado", frame: number, enCuadro: (p: Punto) => Punto): Punto {
@@ -193,12 +275,16 @@ const Titular: React.FC<{
   L: Layout;
   texto: string;
   clave?: string;
+  /** Línea más pequeña debajo del titular. */
+  apoyo?: string;
   desde: number;
   hasta: number;
   rapido?: boolean;
-}> = ({ L, texto, clave, desde, hasta, rapido }) => {
+  /** Más arriba, para dejar sitio a las píldoras debajo. */
+  arriba?: boolean;
+}> = ({ L, texto, clave, apoyo, desde, hasta, rapido, arriba }) => {
   const { fps } = useVideoConfig();
-  const t = L.titular;
+  const t = arriba ? { ...L.titular, ...L.titularArriba } : L.titular;
   return (
     <Sequence name={`Titular · ${texto}`} from={desde} durationInFrames={hasta - desde} premountFor={fps}>
       <div
@@ -209,8 +295,8 @@ const Titular: React.FC<{
           width: t.ancho,
           height: t.alto,
           display: "flex",
-          alignItems: "center",
-          justifyContent: t.alinear === "center" ? "center" : "flex-start",
+          flexDirection: "column",
+          justifyContent: "center",
         }}
       >
         <KineticText
@@ -218,10 +304,24 @@ const Titular: React.FC<{
           clave={clave}
           tamano={L.tamanoTitular}
           alinear={t.alinear}
-          escalonado={rapido ? 3 : 4}
+          escalonado={rapido ? 3 : 5}
           duracion={hasta - desde}
           style={{ width: "100%" }}
         />
+        {apoyo ? (
+          <Sequence from={10} layout="none">
+            <KineticText
+              texto={apoyo}
+              tamano={L.tamanoApoyo}
+              alinear={t.alinear}
+              peso={500}
+              colorTexto={YC.textoSecundario}
+              escalonado={2}
+              duracion={hasta - desde - 10}
+              style={{ width: "100%", marginTop: L.tamanoApoyo * 0.4 }}
+            />
+          </Sequence>
+        ) : null}
       </div>
     </Sequence>
   );
@@ -238,7 +338,9 @@ const CierreFondo: React.FC<{ L: Layout }> = ({ L }) => {
   return (
     <AbsoluteFill
       style={{ background: YC.primario, clipPath: `circle(${radio}px at ${L.celular.cx}px ${L.celular.cy}px)` }}
-    />
+    >
+      <BrilloCierre centro={{ x: width / 2, y: L.cierre.yLogo + (L.cierre.anchoLogo * 92.46) / 353.09 / 2 }} />
+    </AbsoluteFill>
   );
 };
 
@@ -274,10 +376,7 @@ const Cierre: React.FC<{ L: Layout }> = ({ L }) => {
             textAlign: "center",
           }}
         >
-          <KineticText texto={CIERRE.frase1} tamano={c.tamanoFrase} tema="oscuro" peso={600} escalonado={2} />
-          <Sequence from={6} layout="none">
-            <KineticText texto={CIERRE.frase2} clave="cayó." tamano={c.tamanoFrase} tema="oscuro" peso={600} escalonado={2} />
-          </Sequence>
+          <KineticText texto={CIERRE.texto} clave="pago" tamano={c.tamanoFrase} tema="oscuro" peso={600} escalonado={3} />
           <div
             style={{
               marginTop: L.formato === "vertical" ? 72 : 48,

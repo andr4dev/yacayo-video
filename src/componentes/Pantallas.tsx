@@ -2,21 +2,32 @@
 // celular con un deslizamiento o un recorte, nunca con un corte seco.
 import type React from "react";
 import { Easing, Img, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { CAMBIO_PANTALLA, PANEL, PANTALLAS, type Pantalla } from "../constantes";
+import { CAMBIO_PANTALLA, CONFIRMADOS, PANEL, PANTALLAS, POR_REVISAR, type Pantalla } from "../constantes";
+import { desplazamientoConfirmados } from "../escenario";
 import { YC, alfa } from "../marca";
 import zonas from "../../public/screens/zonas.json";
 import { CountUp } from "./CountUp";
 import { WhatsAppChat } from "./WhatsAppChat";
 
-type NombreCaptura = "ingresos-antes" | "ingresos-despues" | "inicio" | "por-revisar-detalle";
+type NombreCaptura =
+  | "ingresos-antes"
+  | "ingresos-despues"
+  | "ingresos-confirmados"
+  | "inicio"
+  | "por-revisar-detalle"
+  | "por-revisar-dialogo"
+  | "por-revisar-confirmado";
 
-/** Una captura real del panel (public/screens/, 390 × 844 a 3x). */
-const Captura: React.FC<{ nombre: NombreCaptura; top?: number }> = ({ nombre, top = 0 }) => (
+/** Una captura real del panel (public/screens/, 390 de ancho a 3x). */
+const Captura: React.FC<{ nombre: NombreCaptura; top?: number; alto?: number }> = ({ nombre, top = 0, alto = 844 }) => (
   <Img
     src={staticFile(`screens/${nombre}.png`)}
-    style={{ position: "absolute", left: 0, top, width: 390, height: 844 }}
+    style={{ position: "absolute", left: 0, top, width: 390, height: alto }}
   />
 );
+
+const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
+const dibujo = { ...clamp, easing: Easing.bezier(0.65, 0, 0.35, 1) };
 
 const Capa: React.FC<{ style?: React.CSSProperties; children: React.ReactNode }> = ({ style, children }) => (
   <div style={{ position: "absolute", inset: 0, overflow: "hidden", ...style }}>{children}</div>
@@ -31,9 +42,13 @@ function contenido(pantalla: Pantalla) {
     case "inicio":
       return <Captura nombre="inicio" />;
     case "porRevisar":
-      return <Captura nombre="por-revisar-detalle" />;
-    case "ingresosDespues":
-      return <Captura nombre="ingresos-despues" />;
+      return <PantallaPorRevisar />;
+    case "porRevisarDialogo":
+      return <Captura nombre="por-revisar-dialogo" />;
+    case "porRevisarConfirmado":
+      return <Captura nombre="por-revisar-confirmado" />;
+    case "confirmados":
+      return <PantallaConfirmados />;
   }
 }
 
@@ -163,6 +178,73 @@ const PantallaIngresos: React.FC = () => {
           </Sequence>
         </div>
       ) : null}
+    </>
+  );
+};
+
+// --- Por revisar: el borde que marca a Laura M. antes de tocar "Es este" ---------------------
+const PantallaPorRevisar: React.FC = () => {
+  const frame = useCurrentFrame();
+  const c = zonas["por-revisar-detalle"].laura;
+  const p = interpolate(frame, [POR_REVISAR.borde, POR_REVISAR.borde + 12], [0, 1], dibujo);
+  return (
+    <>
+      <Captura nombre="por-revisar-detalle" />
+      {p > 0 ? (
+        <svg width={390} height={844} style={{ position: "absolute", inset: 0 }}>
+          <rect
+            x={c.x - 1.5}
+            y={c.y - 1.5}
+            width={c.w + 3}
+            height={c.h + 3}
+            rx={12}
+            fill="none"
+            stroke={YC.primario}
+            strokeWidth={3}
+            pathLength={1}
+            strokeDasharray={1}
+            strokeDashoffset={1 - p}
+          />
+        </svg>
+      ) : null}
+    </>
+  );
+};
+
+// --- Quién lo confirmó: la lista sube sola y se subraya cada "Confirmó …" ----------------------
+const PantallaConfirmados: React.FC = () => {
+  const frame = useCurrentFrame();
+  const z = zonas["ingresos-confirmados"];
+  return (
+    <>
+      <div style={{ position: "absolute", left: 0, top: -desplazamientoConfirmados(frame), width: 390, height: z.alto }}>
+        <Captura nombre="ingresos-confirmados" alto={z.alto} />
+        {CONFIRMADOS.filas.map((fila) => {
+          const c = z[fila.id];
+          const p = interpolate(frame, [fila.desde - 2, fila.desde + 8], [0, 1], dibujo);
+          return (
+            <div
+              key={fila.id}
+              style={{
+                position: "absolute",
+                left: c.x - 4,
+                top: c.y - 2,
+                width: c.w + 8,
+                height: c.h + 4,
+                borderRadius: 4,
+                background: alfa(YC.acento, 0.38),
+                mixBlendMode: "multiply",
+                transformOrigin: "left center",
+                transform: `scaleX(${p})`,
+              }}
+            />
+          );
+        })}
+      </div>
+      {/* La barra de abajo es fija: no sube con la lista. */}
+      <Capa style={{ top: BARRA_INFERIOR }}>
+        <Captura nombre="ingresos-despues" top={-BARRA_INFERIOR} />
+      </Capa>
     </>
   );
 };

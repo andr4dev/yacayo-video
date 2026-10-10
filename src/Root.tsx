@@ -6,7 +6,7 @@ import { KineticText } from "./componentes/KineticText";
 import { Phone } from "./componentes/Phone";
 import { PantallaCelular } from "./componentes/Pantallas";
 import { WhatsAppChat } from "./componentes/WhatsAppChat";
-import { DURACION, FPS } from "./constantes";
+import { DURACION, ESCENAS, FPS } from "./constantes";
 import { LAYOUTS, poseCelular } from "./escenario";
 import { YC } from "./marca";
 import { YacayoDemo } from "./YacayoDemo";
@@ -87,7 +87,7 @@ const PhoneDemo: React.FC = () => {
   return (
     <Lienzo>
       <AbsoluteFill style={{ perspective: L.perspectiva, perspectiveOrigin: `${L.celular.cx}px ${L.celular.cy}px` }}>
-        <Phone pose={poseCelular(Math.max(frame, 75), L)} k={L.celular.k}>
+        <Phone pose={poseCelular(Math.max(frame, ESCENAS.foto.desde), L)} k={L.celular.k}>
           <PantallaCelular />
         </Phone>
       </AbsoluteFill>

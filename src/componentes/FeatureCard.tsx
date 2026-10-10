@@ -16,6 +16,8 @@ type FeatureCardProps = {
   tamano: number;
   /** Frames hasta que la tarjeta se va. */
   duracion: number;
+  /** `izquierda`: `centro` es el borde izquierdo de la tarjeta (para píldoras en columna). */
+  alinear?: "centro" | "izquierda";
   children: React.ReactNode;
 };
 
@@ -28,11 +30,12 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({
   colorIcono,
   tamano,
   duracion,
+  alinear = "centro",
   children,
 }) => {
   const frame = useCurrentFrame();
   const { fps, width, height } = useVideoConfig();
-  const e = spring({ frame, fps, config: { damping: 13, stiffness: 120, mass: 0.9 } });
+  const e = spring({ frame, fps, config: { damping: 18, stiffness: 95, mass: 1 } });
   const salida = interpolate(frame, [duracion - 8, duracion], [0, 1], {
     ...clamp,
     easing: Easing.bezier(0.5, 0, 0.75, 0),
@@ -66,7 +69,8 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({
           position: "absolute",
           left: x,
           top: y,
-          transform: `translate(-50%, -50%) scale(${(0.35 + 0.65 * e) * (1 - 0.15 * salida)})`,
+          transform: `translate(${alinear === "centro" ? "-50%" : "0"}, -50%) scale(${(0.35 + 0.65 * e) * (1 - 0.15 * salida)})`,
+          transformOrigin: alinear === "centro" ? "center" : "left center",
           opacity: Math.min(1, e * 2) * (1 - salida),
           display: "flex",
           alignItems: "center",

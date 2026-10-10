@@ -1,7 +1,7 @@
 // El escenario: dónde va cada cosa en cada formato, cómo se mueve el celular, cómo se proyecta
 // un punto de la pantalla del celular al cuadro (CSS 3D) y qué enfoca la cámara.
 import { Easing, interpolate, spring } from "remotion";
-import { ESCENAS, FPS, MENSAJES, MONTAJE, PANEL, TARJETAS, golpe } from "./constantes";
+import { CONFIRMADOS, ESCENAS, FPS, MENSAJES, PANEL, POR_REVISAR, TARJETAS } from "./constantes";
 import zonas from "../public/screens/zonas.json";
 
 /** La pantalla del celular, en px de CSS (las capturas son de 390 × 844). */
@@ -21,12 +21,19 @@ export type Layout = {
   perspectiva: number;
   /** La caja de los titulares. */
   titular: { x: number; y: number; ancho: number; alto: number; alinear: "center" | "left" };
+  /** La caja del titular cuando debajo van píldoras (escena 8): más arriba en horizontal. */
+  titularArriba: { y: number; alto: number };
   tamanoTitular: number;
+  /** La línea de apoyo debajo del titular. */
+  tamanoApoyo: number;
   /** A dónde lleva la cámara lo que enfoca. */
   foco: Punto;
   /** Centro de cada tarjeta. */
   tarjetas: Record<keyof typeof TARJETAS, Punto>;
   tamanoTarjeta: number;
+  /** Borde izquierdo de las píldoras de "Quién lo confirmó". */
+  xPildoras: number;
+  tamanoPildora: number;
   cierre: { anchoLogo: number; yLogo: number; tamanoFrase: number };
 };
 
@@ -38,10 +45,14 @@ export const LAYOUTS: Record<Formato, Layout> = {
     celular: { cx: 540, cy: 1150, k: 540 / 390 },
     perspectiva: 2800,
     titular: { x: 80, y: 130, ancho: 920, alto: 360, alinear: "center" },
+    titularArriba: { y: 130, alto: 360 },
     tamanoTitular: 92,
+    tamanoApoyo: 46,
     foco: { x: 540, y: 1180 },
     tarjetas: { mandaLaFoto: { x: 330, y: 1030 }, confirmado: { x: 540, y: 1600 } },
     tamanoTarjeta: 44,
+    xPildoras: 615,
+    tamanoPildora: 30,
     cierre: { anchoLogo: 700, yLogo: 820, tamanoFrase: 56 },
   },
   horizontal: {
@@ -51,10 +62,14 @@ export const LAYOUTS: Record<Formato, Layout> = {
     celular: { cx: 600, cy: 548, k: 372 / 390 },
     perspectiva: 2400,
     titular: { x: 1040, y: 230, ancho: 800, alto: 380, alinear: "left" },
+    titularArriba: { y: 60, alto: 240 },
     tamanoTitular: 92,
+    tamanoApoyo: 44,
     foco: { x: 560, y: 540 },
     tarjetas: { mandaLaFoto: { x: 1300, y: 600 }, confirmado: { x: 1400, y: 760 } },
     tamanoTarjeta: 40,
+    xPildoras: 960,
+    tamanoPildora: 34,
     cierre: { anchoLogo: 760, yLogo: 420, tamanoFrase: 56 },
   },
 };
@@ -93,10 +108,10 @@ export function poseCelular(frame: number, L: Layout): Pose {
   const g2 = ESCENAS.repetido.desde;
   ry += tramo(frame, [g2, g2 + 12, g2 + 30], [0, 36, 16]);
 
-  // Montaje: un golpe de giro y de escala en cada corte.
-  const [m0, m1, m2] = MONTAJE.map((m) => m.desde);
-  ry += tramo(frame, [m0, m0 + 10, m1, m1 + 10, m2, m2 + 10], [0, 8, 8, -10, -10, 4]);
-  for (const m of MONTAJE) s *= 1 + 0.04 * tramo(frame, [m.desde, m.desde + 4, m.desde + 16], [0, 1, 0]);
+  // Escenas 6 a 8: un golpe de giro y de escala en cada cambio de escena.
+  const [c0, c1, c2] = [ESCENAS.inicio.desde, ESCENAS.porRevisar.desde, ESCENAS.confirmados.desde];
+  ry += tramo(frame, [c0, c0 + 10, c1, c1 + 10, c2, c2 + 12], [0, 8, 8, -8, -8, 2]);
+  for (const c of [c0, c1, c2]) s *= 1 + 0.04 * tramo(frame, [c, c + 4, c + 16], [0, 1, 0]);
 
   // Cierre: se aleja y sale por abajo.
   const c = ESCENAS.cierre.desde;
@@ -140,33 +155,56 @@ export function proyectar(p: Punto, pose: Pose, L: Layout): Punto {
 }
 
 // --- La cámara ---------------------------------------------------------------------------------
-export type Zoom = { desde: number; hasta: number; escala: number; foco: Punto };
+/** `foco` puede moverse: la cámara recorre la pantalla sin alejarse. */
+export type Zoom = { desde: number; hasta: number; escala: number; foco: Punto | ((frame: number) => Punto) };
 
 const centro = (c: { x: number; y: number; w: number; h: number }): Punto => ({ x: c.x + c.w / 2, y: c.y + c.h / 2 });
 
 /** Los acercamientos de cámara, con el punto de la pantalla del celular que enfocan. */
 export const ZOOMS: Zoom[] = [
   // Escena 3: el chat, donde llega la respuesta.
-  { desde: ESCENAS.respuesta.desde, hasta: ESCENAS.respuesta.hasta - 2, escala: 1.8, foco: { x: 195, y: 640 } },
+  { desde: ESCENAS.respuesta.desde, hasta: ESCENAS.respuesta.hasta - 4, escala: 1.8, foco: { x: 195, y: 640 } },
   // Escena 4: la fila de Juan P., de donde sale "Confirmado · Caja 1".
-  { desde: golpe(20), hasta: PANEL.llegaCamila - 2, escala: 1.5, foco: centro(zonas["ingresos-antes"].tarjetaJuan) },
+  {
+    desde: TARJETAS.confirmado.desde - 20,
+    hasta: PANEL.llegaCamila - 4,
+    escala: 1.5,
+    foco: centro(zonas["ingresos-antes"].tarjetaJuan),
+  },
   // Escena 4: el total que cuenta.
-  { desde: golpe(24), hasta: golpe(27) + 7, escala: 2, foco: { x: 195, y: 262 } },
+  { desde: PANEL.cuenta.desde - 15, hasta: ESCENAS.panel.hasta - 4, escala: 2, foco: { x: 195, y: 262 } },
   // Escena 5: "Ese pago ya se usó".
-  { desde: golpe(30) + 5, hasta: golpe(35), escala: 1.8, foco: { x: 195, y: 650 } },
+  { desde: MENSAJES.foto2 + 5, hasta: ESCENAS.repetido.hasta - 6, escala: 1.8, foco: { x: 195, y: 650 } },
+  // Escena 7: de lo leído en la foto a los dos candidatos, al diálogo y al aviso.
+  {
+    desde: ESCENAS.porRevisar.desde + 3,
+    hasta: ESCENAS.porRevisar.hasta - 2,
+    escala: 1.55,
+    foco: (frame) => ({
+      x: 195,
+      y: tramo(frame, [POR_REVISAR.baja, POR_REVISAR.baja + 24, POR_REVISAR.confirmado - 6, POR_REVISAR.confirmado + 10], [250, 590, 590, 650]),
+    }),
+  },
+  // Escena 8: la lista de confirmados.
+  { desde: ESCENAS.confirmados.desde + 3, hasta: ESCENAS.confirmados.hasta - 2, escala: 1.15, foco: { x: 195, y: 420 } },
 ];
+
+/** Cuánto ha subido la lista de confirmados (px de pantalla). */
+export const desplazamientoConfirmados = (frame: number) =>
+  tramo(frame, [CONFIRMADOS.desplazamiento.desde, CONFIRMADOS.desplazamiento.hasta], [0, CONFIRMADOS.desplazamiento.px]);
 
 export type Camara = { s: number; tx: number; ty: number };
 
 export function camara(frame: number, pose: Pose, L: Layout): Camara {
   for (const z of ZOOMS) {
-    const e = interpolate(frame, [z.desde, z.desde + 16, z.hasta - 14, z.hasta], [0, 1, 1, 0], {
+    // Entradas y salidas sin prisa: casi un segundo para acercarse.
+    const e = interpolate(frame, [z.desde, z.desde + 24, z.hasta - 20, z.hasta], [0, 1, 1, 0], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
       easing: Easing.bezier(0.65, 0, 0.35, 1),
     });
     if (e <= 0) continue;
-    const f = proyectar(z.foco, pose, L);
+    const f = proyectar(typeof z.foco === "function" ? z.foco(frame) : z.foco, pose, L);
     const s = 1 + (z.escala - 1) * e;
     return { s, tx: f.x + (L.foco.x - f.x) * e - s * f.x, ty: f.y + (L.foco.y - f.y) * e - s * f.y };
   }

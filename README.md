@@ -1,6 +1,6 @@
 # Video promocional de YaCayó
 
-Remotion 4 · 30 fps · 25 s · 120 BPM. Dos composiciones: `YacayoVertical` (1080 × 1920) y
+Remotion 4 · 30 fps · 32 s · 120 BPM. Dos composiciones: `YacayoVertical` (1080 × 1920) y
 `YacayoHorizontal` (1920 × 1080, celular a un lado y texto al otro).
 
 ## Comandos
@@ -35,5 +35,5 @@ elemento, para los zooms y las líneas de las tarjetas). Para volver a tomarlas:
 2. Panel con datos de ejemplo, desde `yacayo-src/front`: `pnpm install` y `VITE_MOCKS=* pnpm dev:panel` (puerto 5173).
 3. Prototipo congelado (para *Por revisar*, que en el panel aún es un marcador), desde
    `yacayo-src/front/prototipo`: `npm install` y
-   `node node_modules/vite/bin/vite.js --config ../../../scripts/prototipo.vite.config.mjs` (puerto 5174).
+   `node node_modules/vite/bin/vite.js --config ../../../scripts/prototipo.vite.config.mjs` (puerto 5180).
 4. `npm run capturas`.
