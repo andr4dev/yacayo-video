@@ -1,0 +1,30 @@
+{
+  "name": "yacayo-video",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "remotion studio",
+    "capturas": "node scripts/capturas.mjs",
+    "render:vertical": "remotion render YacayoVertical out/yacayo-demo-vertical.mp4",
+    "render:horizontal": "remotion render YacayoHorizontal out/yacayo-demo-horizontal.mp4",
+    "render": "npm run render:vertical && npm run render:horizontal",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.534",
+    "@remotion/google-fonts": "4.0.534",
+    "@remotion/media": "4.0.534",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "remotion": "4.0.534"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "playwright": "1.64.0",
+    "typescript": "5.9.3"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
+  }
+}
