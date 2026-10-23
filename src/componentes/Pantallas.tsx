@@ -1,29 +1,17 @@
 // Lo que muestra la pantalla del celular en cada momento. Las pantallas cambian dentro del
 // celular con un deslizamiento o un recorte, nunca con un corte seco.
 import type React from "react";
-import { Easing, Img, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { CAMBIO_PANTALLA, CONFIRMADOS, PANEL, PANTALLAS, POR_REVISAR, type Pantalla } from "../constantes";
-import { desplazamientoConfirmados } from "../escenario";
+import { Easing, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { ASISTENTE, CAMBIO_PANTALLA, PANTALLAS, type Pantalla } from "../constantes";
 import { YC, alfa } from "../marca";
-import zonas from "../../public/screens/zonas.json";
-import { CountUp } from "./CountUp";
+import zonas from "../../public/screens/zonas-asistente.json";
+import { AssistantBubble, AssistantChat } from "./Asistente";
+import { MARCO } from "./asistenteGeometria";
 import { WhatsAppChat } from "./WhatsAppChat";
 
-type NombreCaptura =
-  | "ingresos-antes"
-  | "ingresos-despues"
-  | "ingresos-confirmados"
-  | "inicio"
-  | "por-revisar-detalle"
-  | "por-revisar-dialogo"
-  | "por-revisar-confirmado";
-
 /** Una captura real del panel (public/screens/, 390 de ancho a 3x). */
-const Captura: React.FC<{ nombre: NombreCaptura; top?: number; alto?: number }> = ({ nombre, top = 0, alto = 844 }) => (
-  <Img
-    src={staticFile(`screens/${nombre}.png`)}
-    style={{ position: "absolute", left: 0, top, width: 390, height: alto }}
-  />
+const Captura: React.FC<{ nombre: "panel-inicio" }> = ({ nombre }) => (
+  <Img src={staticFile(`screens/${nombre}.png`)} style={{ position: "absolute", left: 0, top: 0, width: 390, height: 844 }} />
 );
 
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -37,18 +25,8 @@ function contenido(pantalla: Pantalla) {
   switch (pantalla) {
     case "chat":
       return <WhatsAppChat />;
-    case "ingresos":
-      return <PantallaIngresos />;
     case "inicio":
-      return <Captura nombre="inicio" />;
-    case "porRevisar":
-      return <PantallaPorRevisar />;
-    case "porRevisarDialogo":
-      return <Captura nombre="por-revisar-dialogo" />;
-    case "porRevisarConfirmado":
-      return <Captura nombre="por-revisar-confirmado" />;
-    case "confirmados":
-      return <PantallaConfirmados />;
+      return <PantallaInicio />;
   }
 }
 
@@ -97,154 +75,44 @@ export const PantallaCelular: React.FC = () => {
   );
 };
 
-// --- Ingresos: llega el pago de Camila R. y el total cuenta ---------------------------------------
-const LISTA = zonas["ingresos-despues"].tarjetaCamila.y; // donde empieza la lista
-const ALTO_CAMILA = zonas["ingresos-despues"].tarjetaJuan.y - LISTA; // lo que empuja la tarjeta nueva
-const BARRA_INFERIOR = 764; // la navegación de abajo, que no se mueve
-const RESUMEN = { top: 288, alto: 36 }; // "6 pagos · 2 sin confirmar"
-const TOTAL = zonas["ingresos-antes"].total;
-
-const PantallaIngresos: React.FC = () => {
+// --- Inicio con el asistente: la burbuja late, se toca y sube la hoja del chat. Al final, corte
+// rápido a la tarjeta "Pagos recibidos" (sin la hoja), con la misma cifra resaltada. -----------
+const PantallaInicio: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const fin = PANEL.cuenta.desde + PANEL.cuenta.duracion;
-  if (frame >= fin + 2) return <Captura nombre="ingresos-despues" />;
-
-  const p =
-    frame < PANEL.llegaCamila
-      ? 0
-      : spring({ frame: frame - PANEL.llegaCamila, fps, config: { damping: 18, stiffness: 110 } });
+  const abierta = frame >= ASISTENTE.abre && frame < ASISTENTE.corte;
+  const subida = spring({ frame: frame - ASISTENTE.abre, fps, config: { damping: 20, stiffness: 110 } });
+  const total = zonas["panel-inicio"].total;
+  const resaltado = interpolate(frame, [ASISTENTE.corte + 4, ASISTENTE.corte + 14], [0, 1], dibujo);
 
   return (
     <>
-      <Captura nombre="ingresos-antes" />
-
-      {p > 0 ? (
-        <Capa style={{ top: LISTA, bottom: 844 - BARRA_INFERIOR, background: YC.fondoClaro }}>
-          {/* La lista de antes baja… */}
-          <Captura nombre="ingresos-antes" top={-LISTA + ALTO_CAMILA * p} />
-          {/* …y la tarjeta de Camila R. entra desde arriba. */}
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              top: -ALTO_CAMILA * (1 - p),
-              height: ALTO_CAMILA,
-              overflow: "hidden",
-            }}
-          >
-            <Captura nombre="ingresos-despues" top={-LISTA} />
-          </div>
-        </Capa>
-      ) : null}
-
-      {/* "7 pagos · 3 sin confirmar" */}
-      <Capa
-        style={{
-          top: RESUMEN.top,
-          bottom: 844 - RESUMEN.top - RESUMEN.alto,
-          opacity: interpolate(frame, [PANEL.llegaCamila + 6, PANEL.llegaCamila + 12], [0, 1], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          }),
-        }}
-      >
-        <Captura nombre="ingresos-despues" top={-RESUMEN.top} />
-      </Capa>
-
-      {/* El total cuenta de $542.000 a $614.000 (Hanken Grotesk 700, 30 px, como el panel). */}
-      {frame >= PANEL.cuenta.desde ? (
+      <Captura nombre="panel-inicio" />
+      {frame >= ASISTENTE.corte ? (
         <div
           style={{
             position: "absolute",
-            left: 40,
-            right: 40,
-            top: TOTAL.y - 4,
-            height: TOTAL.h + 8,
-            background: YC.fondoClaro,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            left: total.x - 4,
+            top: total.y + total.h * 0.45,
+            width: total.w + 8,
+            height: total.h * 0.5,
+            borderRadius: 4,
+            background: alfa(YC.acento, 0.45),
+            mixBlendMode: "multiply",
+            transformOrigin: "left center",
+            transform: `scaleX(${resaltado})`,
           }}
-        >
-          <Sequence from={PANEL.cuenta.desde} layout="none">
-            <CountUp
-              desde={PANEL.totalSinCamila}
-              hasta={PANEL.totalConCamila}
-              duracion={PANEL.cuenta.duracion}
-              style={{ fontSize: 30, lineHeight: `${TOTAL.h}px`, color: YC.texto }}
-            />
-          </Sequence>
-        </div>
+        />
       ) : null}
-    </>
-  );
-};
-
-// --- Por revisar: el borde que marca a Laura M. antes de tocar "Es este" ---------------------
-const PantallaPorRevisar: React.FC = () => {
-  const frame = useCurrentFrame();
-  const c = zonas["por-revisar-detalle"].laura;
-  const p = interpolate(frame, [POR_REVISAR.borde, POR_REVISAR.borde + 12], [0, 1], dibujo);
-  return (
-    <>
-      <Captura nombre="por-revisar-detalle" />
-      {p > 0 ? (
-        <svg width={390} height={844} style={{ position: "absolute", inset: 0 }}>
-          <rect
-            x={c.x - 1.5}
-            y={c.y - 1.5}
-            width={c.w + 3}
-            height={c.h + 3}
-            rx={12}
-            fill="none"
-            stroke={YC.primario}
-            strokeWidth={3}
-            pathLength={1}
-            strokeDasharray={1}
-            strokeDashoffset={1 - p}
-          />
-        </svg>
+      <AssistantBubble variante="hoja" aparece={ASISTENTE.burbuja} pulso={ASISTENTE.pulso} toque={ASISTENTE.toqueBurbuja} />
+      {abierta ? (
+        <>
+          <Capa style={{ background: YC.fondoOscuro, opacity: 0.45 * subida }}>{null}</Capa>
+          <div style={{ position: "absolute", inset: 0, transform: `translateY(${(1 - subida) * MARCO.hoja.h}px)` }}>
+            <AssistantChat variante="hoja" />
+          </div>
+        </>
       ) : null}
-    </>
-  );
-};
-
-// --- Quién lo confirmó: la lista sube sola y se subraya cada "Confirmó …" ----------------------
-const PantallaConfirmados: React.FC = () => {
-  const frame = useCurrentFrame();
-  const z = zonas["ingresos-confirmados"];
-  return (
-    <>
-      <div style={{ position: "absolute", left: 0, top: -desplazamientoConfirmados(frame), width: 390, height: z.alto }}>
-        <Captura nombre="ingresos-confirmados" alto={z.alto} />
-        {CONFIRMADOS.filas.map((fila) => {
-          const c = z[fila.id];
-          const p = interpolate(frame, [fila.desde - 2, fila.desde + 8], [0, 1], dibujo);
-          return (
-            <div
-              key={fila.id}
-              style={{
-                position: "absolute",
-                left: c.x - 4,
-                top: c.y - 2,
-                width: c.w + 8,
-                height: c.h + 4,
-                borderRadius: 4,
-                background: alfa(YC.acento, 0.38),
-                mixBlendMode: "multiply",
-                transformOrigin: "left center",
-                transform: `scaleX(${p})`,
-              }}
-            />
-          );
-        })}
-      </div>
-      {/* La barra de abajo es fija: no sube con la lista. */}
-      <Capa style={{ top: BARRA_INFERIOR }}>
-        <Captura nombre="ingresos-despues" top={-BARRA_INFERIOR} />
-      </Capa>
     </>
   );
 };

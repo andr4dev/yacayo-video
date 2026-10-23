@@ -1,80 +1,59 @@
-// El escenario: dónde va cada cosa en cada formato, cómo se mueve el celular, cómo se proyecta
-// un punto de la pantalla del celular al cuadro (CSS 3D) y qué enfoca la cámara.
+// El escenario (1920 × 1080: el celular o el panel de escritorio a un lado y el texto al otro):
+// dónde va cada cosa, cómo se mueven el celular y el panel, cómo se proyecta un punto de sus
+// pantallas al cuadro (CSS 3D) y qué enfoca la cámara.
 import { Easing, interpolate, spring } from "remotion";
-import { CONFIRMADOS, ESCENAS, FPS, MENSAJES, PANEL, POR_REVISAR, TARJETAS } from "./constantes";
-import zonas from "../public/screens/zonas.json";
+import { ASISTENTE, CONVERSACION, ESCENAS, FPS, MENSAJES } from "./constantes";
+import { MARCO, cajaDelMensaje, centroDeSugerencia } from "./componentes/asistenteGeometria";
+import zonas from "../public/screens/zonas-asistente.json";
 
 /** La pantalla del celular, en px de CSS (las capturas son de 390 × 844). */
 export const PANTALLA = { ancho: 390, alto: 844 } as const;
 /** El bisel del celular, en las mismas unidades. */
 export const BISEL = 13;
+/** La pantalla del panel de escritorio, en px de CSS (las capturas son de 1440 × 900). */
+export const ESCRITORIO = { ancho: 1440, alto: 900 } as const;
 
 export type Punto = { x: number; y: number };
-export type Formato = "vertical" | "horizontal";
 
 export type Layout = {
-  formato: Formato;
   ancho: number;
   alto: number;
   /** Centro del celular en reposo y su escala (px del cuadro por unidad de pantalla). */
   celular: { cx: number; cy: number; k: number };
   perspectiva: number;
   /** La caja de los titulares. */
-  titular: { x: number; y: number; ancho: number; alto: number; alinear: "center" | "left" };
-  /** La caja del titular cuando debajo van píldoras (escena 8): más arriba en horizontal. */
-  titularArriba: { y: number; alto: number };
+  titular: { x: number; y: number; ancho: number; alto: number };
   tamanoTitular: number;
   /** La línea de apoyo debajo del titular. */
   tamanoApoyo: number;
   /** A dónde lleva la cámara lo que enfoca. */
   foco: Punto;
   /** Centro de cada tarjeta. */
-  tarjetas: Record<keyof typeof TARJETAS, Punto>;
+  tarjetas: { mandaLaFoto: Punto; dato: Punto };
   tamanoTarjeta: number;
-  /** Borde izquierdo de las píldoras de "Quién lo confirmó". */
-  xPildoras: number;
-  tamanoPildora: number;
+  tamanoToque: number;
+  tamanoPulso: number;
+  /** El panel de escritorio: centro en reposo, ancho de la ventana y alto de su barra (px del cuadro). */
+  escritorio: { cx: number; cy: number; ancho: number; barra: number };
   cierre: { anchoLogo: number; yLogo: number; tamanoFrase: number };
 };
 
-export const LAYOUTS: Record<Formato, Layout> = {
-  vertical: {
-    formato: "vertical",
-    ancho: 1080,
-    alto: 1920,
-    celular: { cx: 540, cy: 1150, k: 540 / 390 },
-    perspectiva: 2800,
-    titular: { x: 80, y: 130, ancho: 920, alto: 360, alinear: "center" },
-    titularArriba: { y: 130, alto: 360 },
-    tamanoTitular: 92,
-    tamanoApoyo: 46,
-    foco: { x: 540, y: 1180 },
-    tarjetas: { mandaLaFoto: { x: 330, y: 1030 }, confirmado: { x: 540, y: 1600 } },
-    tamanoTarjeta: 44,
-    xPildoras: 615,
-    tamanoPildora: 30,
-    cierre: { anchoLogo: 700, yLogo: 820, tamanoFrase: 56 },
-  },
-  horizontal: {
-    formato: "horizontal",
-    ancho: 1920,
-    alto: 1080,
-    celular: { cx: 600, cy: 548, k: 372 / 390 },
-    perspectiva: 2400,
-    titular: { x: 1040, y: 230, ancho: 800, alto: 380, alinear: "left" },
-    titularArriba: { y: 60, alto: 240 },
-    tamanoTitular: 92,
-    tamanoApoyo: 44,
-    foco: { x: 560, y: 540 },
-    tarjetas: { mandaLaFoto: { x: 1300, y: 600 }, confirmado: { x: 1400, y: 760 } },
-    tamanoTarjeta: 40,
-    xPildoras: 960,
-    tamanoPildora: 34,
-    cierre: { anchoLogo: 760, yLogo: 420, tamanoFrase: 56 },
-  },
+export const LAYOUT: Layout = {
+  ancho: 1920,
+  alto: 1080,
+  celular: { cx: 600, cy: 548, k: 372 / 390 },
+  perspectiva: 2400,
+  titular: { x: 1040, y: 230, ancho: 800, alto: 380 },
+  tamanoTitular: 92,
+  tamanoApoyo: 44,
+  foco: { x: 560, y: 540 },
+  tarjetas: { mandaLaFoto: { x: 1300, y: 600 }, dato: { x: 1420, y: 760 } },
+  tamanoTarjeta: 40,
+  tamanoToque: 84,
+  tamanoPulso: 80,
+  escritorio: { cx: 560, cy: 540, ancho: 960, barra: 36 },
+  cierre: { anchoLogo: 760, yLogo: 420, tamanoFrase: 56 },
 };
-
-export const layoutPara = (ancho: number, alto: number) => (ancho > alto ? LAYOUTS.horizontal : LAYOUTS.vertical);
 
 // --- El celular -------------------------------------------------------------------------------
 export type Pose = { x: number; y: number; s: number; rx: number; ry: number; rz: number };
@@ -94,31 +73,17 @@ export function poseCelular(frame: number, L: Layout): Pose {
     fps: FPS,
     config: { damping: 15, stiffness: 70, mass: 1.1 },
   });
-  let x = cx;
+  const x = cx;
   let y = cy + (1 - e) * (L.alto - cy + altoCelular * 0.65);
   let s = 1;
   let ry = 25 + (8 - 25) * e;
   let rx = 14 + (4 - 14) * e;
   let rz = 0;
 
-  // Escena 4: gira para pasar a Ingresos (8° → −28° → −8°).
-  const g1 = ESCENAS.panel.desde;
-  ry += tramo(frame, [g1, g1 + 12, g1 + 30], [0, -36, -16]);
-  // Escena 5: vuelve al chat.
-  const g2 = ESCENAS.repetido.desde;
-  ry += tramo(frame, [g2, g2 + 12, g2 + 30], [0, 36, 16]);
-
-  // Escenas 6 a 8: un golpe de giro y de escala en cada cambio de escena.
-  const [c0, c1, c2] = [ESCENAS.inicio.desde, ESCENAS.porRevisar.desde, ESCENAS.confirmados.desde];
-  ry += tramo(frame, [c0, c0 + 10, c1, c1 + 10, c2, c2 + 12], [0, 8, 8, -8, -8, 2]);
-  for (const c of [c0, c1, c2]) s *= 1 + 0.04 * tramo(frame, [c, c + 4, c + 16], [0, 1, 0]);
-
-  // Cierre: se aleja y sale por abajo.
-  const c = ESCENAS.cierre.desde;
-  s *= tramo(frame, [c, c + 18], [1, 0.62]);
-  y += tramo(frame, [c, c + 10], [0, -40]) + tramo(frame, [c + 10, c + 34], [0, L.alto], Easing.bezier(0.55, 0, 0.8, 0.4));
-  ry += tramo(frame, [c, c + 30], [0, 16]);
-  rx += tramo(frame, [c, c + 30], [0, 12]);
+  // El asistente: un golpe de giro y de escala al pasar del chat de WhatsApp al panel.
+  const a = ESCENAS.preguntale.desde;
+  ry += tramo(frame, [a, a + 10], [0, 8]);
+  s *= 1 + 0.04 * tramo(frame, [a, a + 4, a + 16], [0, 1, 0]);
 
   // Deriva lenta: ±4° y un leve flotar.
   ry += 4 * Math.sin((2 * Math.PI * frame) / 150);
@@ -128,9 +93,9 @@ export function poseCelular(frame: number, L: Layout): Pose {
 
   // Temblor leve de 3 frames cuando llega "Ese pago ya se usó".
   const t = frame - MENSAJES.yaUsado;
-  if (t >= 0 && t < 3) x += [12, -12, 7][t] * k;
+  const temblor = t >= 0 && t < 3 ? [12, -12, 7][t] * k : 0;
 
-  return { x, y, s, rx, ry, rz };
+  return { x: x + temblor, y, s, rx, ry, rz };
 }
 
 const rad = (g: number) => (g * Math.PI) / 180;
@@ -154,58 +119,96 @@ export function proyectar(p: Punto, pose: Pose, L: Layout): Punto {
   return { x: cx + (pose.x - cx + X) * f, y: cy + (pose.y - cy + Y) * f };
 }
 
+// --- El panel de escritorio ---------------------------------------------------------------------
+export type PoseEscritorio = { x: number; y: number; s: number };
+
+/** Entra desde abajo al empezar "Te sigue entre pantallas" y se va hacia abajo con la placa. */
+export function poseEscritorio(frame: number, L: Layout): PoseEscritorio {
+  const { cx, cy } = L.escritorio;
+  const e = spring({ frame: frame - ESCENAS.entrePantallas.desde, fps: FPS, config: { damping: 16, stiffness: 90 } });
+  const p = ESCENAS.placa.desde;
+  const sale = Easing.bezier(0.55, 0, 0.8, 0.4);
+  const y = cy + (1 - e) * L.alto * 0.8 + tramo(frame, [p, p + 20], [0, L.alto], sale) + 6 * Math.sin((2 * Math.PI * frame) / 140);
+  const s = (0.9 + 0.1 * e) * tramo(frame, [p, p + 20], [1, 0.9]);
+  return { x: cx, y, s };
+}
+
+/** Un punto del panel de escritorio (px de la captura de 1440 × 900) en el escenario. */
+export function proyectarEscritorio(p: Punto, pose: PoseEscritorio, L: Layout): Punto {
+  const ke = L.escritorio.ancho / ESCRITORIO.ancho;
+  const ancho = L.escritorio.ancho;
+  const alto = ESCRITORIO.alto * ke + L.escritorio.barra;
+  return {
+    x: pose.x + (-ancho / 2 + p.x * ke) * pose.s,
+    y: pose.y + (-alto / 2 + L.escritorio.barra + p.y * ke) * pose.s,
+  };
+}
+
 // --- La cámara ---------------------------------------------------------------------------------
-/** `foco` puede moverse: la cámara recorre la pantalla sin alejarse. */
-export type Zoom = { desde: number; hasta: number; escala: number; foco: Punto | ((frame: number) => Punto) };
+/** `foco` y `escala` pueden moverse: la cámara recorre la pantalla sin alejarse. */
+export type Zoom = {
+  desde: number;
+  hasta: number;
+  escala: number | ((frame: number) => number);
+  foco: Punto | ((frame: number) => Punto);
+  /** La pantalla del foco: la del celular (por defecto) o la del panel de escritorio. */
+  en?: "celular" | "escritorio";
+  /** Termina con un corte (la escena siguiente ya no muestra lo mismo) en vez de alejarse. */
+  corte?: boolean;
+};
 
 const centro = (c: { x: number; y: number; w: number; h: number }): Punto => ({ x: c.x + c.w / 2, y: c.y + c.h / 2 });
+const mezclar = (a: Punto, b: Punto, t: number): Punto => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+const primeraPregunta = CONVERSACION.pasos[0].aparece;
 
-/** Los acercamientos de cámara, con el punto de la pantalla del celular que enfocan. */
+/** Los acercamientos de cámara, con el punto de la pantalla que enfocan. */
 export const ZOOMS: Zoom[] = [
-  // Escena 3: el chat, donde llega la respuesta.
+  // 3: el chat, donde llega la respuesta.
   { desde: ESCENAS.respuesta.desde, hasta: ESCENAS.respuesta.hasta - 4, escala: 1.8, foco: { x: 195, y: 640 } },
-  // Escena 4: la fila de Juan P., de donde sale "Confirmado · Caja 1".
-  {
-    desde: TARJETAS.confirmado.desde - 20,
-    hasta: PANEL.llegaCamila - 4,
-    escala: 1.5,
-    foco: centro(zonas["ingresos-antes"].tarjetaJuan),
-  },
-  // Escena 4: el total que cuenta.
-  { desde: PANEL.cuenta.desde - 15, hasta: ESCENAS.panel.hasta - 4, escala: 2, foco: { x: 195, y: 262 } },
-  // Escena 5: "Ese pago ya se usó".
+  // 5: "Ese pago ya se usó".
   { desde: MENSAJES.foto2 + 5, hasta: ESCENAS.repetido.hasta - 6, escala: 1.8, foco: { x: 195, y: 650 } },
-  // Escena 7: de lo leído en la foto a los dos candidatos, al diálogo y al aviso.
+  // Asistente 1 y 2: las sugerencias, la respuesta, "Consulté: …" y, tras el corte, la cifra en
+  // la tarjeta de Inicio.
   {
-    desde: ESCENAS.porRevisar.desde + 3,
-    hasta: ESCENAS.porRevisar.hasta - 2,
-    escala: 1.55,
-    foco: (frame) => ({
-      x: 195,
-      y: tramo(frame, [POR_REVISAR.baja, POR_REVISAR.baja + 24, POR_REVISAR.confirmado - 6, POR_REVISAR.confirmado + 10], [250, 590, 590, 650]),
-    }),
+    desde: ASISTENTE.abre - 6,
+    hasta: ESCENAS.responde.hasta,
+    corte: true,
+    escala: (frame) =>
+      frame >= ASISTENTE.corte ? 2.4 : tramo(frame, [ASISTENTE.acercaConsulte, ASISTENTE.acercaConsulte + 22], [1.5, 2.1]),
+    foco: (frame) => {
+      if (frame >= ASISTENTE.corte) return centro(zonas["panel-inicio"].total);
+      const sugerencias = { x: 195, y: centroDeSugerencia("hoja", 2).y };
+      const mensajes = mezclar(sugerencias, { x: 195, y: 250 }, tramo(frame, [primeraPregunta, primeraPregunta + 20], [0, 1]));
+      const respuesta = cajaDelMensaje(CONVERSACION, "hoja", "r1", frame);
+      if (!respuesta) return mensajes;
+      return mezclar(mensajes, centro(respuesta), tramo(frame, [ASISTENTE.acercaConsulte, ASISTENTE.acercaConsulte + 22], [0, 1]));
+    },
   },
-  // Escena 8: la lista de confirmados.
-  { desde: ESCENAS.confirmados.desde + 3, hasta: ESCENAS.confirmados.hasta - 2, escala: 1.15, foco: { x: 195, y: 420 } },
+  // Asistente 3 y 4: la tarjeta del chat en el panel de escritorio.
+  {
+    en: "escritorio",
+    desde: ASISTENTE.cambiaPagina + 4,
+    hasta: ESCENAS.soloConsulta.hasta,
+    escala: 1.9,
+    foco: centro(MARCO.tarjeta),
+  },
 ];
-
-/** Cuánto ha subido la lista de confirmados (px de pantalla). */
-export const desplazamientoConfirmados = (frame: number) =>
-  tramo(frame, [CONFIRMADOS.desplazamiento.desde, CONFIRMADOS.desplazamiento.hasta], [0, CONFIRMADOS.desplazamiento.px]);
 
 export type Camara = { s: number; tx: number; ty: number };
 
-export function camara(frame: number, pose: Pose, L: Layout): Camara {
+export function camara(frame: number, celular: Pose, escritorio: PoseEscritorio, L: Layout): Camara {
   for (const z of ZOOMS) {
+    if (frame < z.desde || frame >= z.hasta) continue;
     // Entradas y salidas sin prisa: casi un segundo para acercarse.
-    const e = interpolate(frame, [z.desde, z.desde + 24, z.hasta - 20, z.hasta], [0, 1, 1, 0], {
+    const e = interpolate(frame, z.corte ? [z.desde, z.desde + 24] : [z.desde, z.desde + 24, z.hasta - 20, z.hasta], z.corte ? [0, 1] : [0, 1, 1, 0], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
       easing: Easing.bezier(0.65, 0, 0.35, 1),
     });
-    if (e <= 0) continue;
-    const f = proyectar(typeof z.foco === "function" ? z.foco(frame) : z.foco, pose, L);
-    const s = 1 + (z.escala - 1) * e;
+    const punto = typeof z.foco === "function" ? z.foco(frame) : z.foco;
+    const f = z.en === "escritorio" ? proyectarEscritorio(punto, escritorio, L) : proyectar(punto, celular, L);
+    const escala = typeof z.escala === "function" ? z.escala(frame) : z.escala;
+    const s = 1 + (escala - 1) * e;
     return { s, tx: f.x + (L.foco.x - f.x) * e - s * f.x, ty: f.y + (L.foco.y - f.y) * e - s * f.y };
   }
   return { s: 1, tx: 0, ty: 0 };

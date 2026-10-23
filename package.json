@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "remotion studio",
     "capturas": "node scripts/capturas.mjs",
-    "render:vertical": "remotion render YacayoVertical out/yacayo-demo-vertical.mp4",
+    "capturas:asistente": "node scripts/capturas-asistente.mjs",
     "render:horizontal": "remotion render YacayoHorizontal out/yacayo-demo-horizontal.mp4",
-    "render": "npm run render:vertical && npm run render:horizontal",
+    "render": "npm run render:horizontal",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

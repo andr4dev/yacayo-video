@@ -1,0 +1,88 @@
+{
+  "panel-inicio": {
+    "tarjeta": {
+      "x": 16,
+      "y": 464,
+      "w": 358,
+      "h": 387
+    },
+    "total": {
+      "x": 41,
+      "y": 513,
+      "w": 150,
+      "h": 47
+    },
+    "cifras": {
+      "total": "$614.000",
+      "pagos": 7,
+      "sinConfirmar": 3
+    },
+    "plan": {
+      "usados": 330,
+      "limite": 400
+    },
+    "porRevisar": {
+      "x": 156,
+      "y": 765,
+      "w": 78,
+      "h": 79
+    }
+  },
+  "panel-por-revisar": {
+    "ambiguo": {
+      "x": 41,
+      "y": 382,
+      "w": 168,
+      "h": 18
+    },
+    "ilegible": {
+      "x": 41,
+      "y": 250,
+      "w": 164,
+      "h": 18
+    }
+  },
+  "panel-inicio-escritorio": {
+    "tarjeta": {
+      "x": 272,
+      "y": 370,
+      "w": 1136,
+      "h": 191
+    },
+    "total": {
+      "x": 305,
+      "y": 431,
+      "w": 208,
+      "h": 65
+    },
+    "cifras": {
+      "total": "$614.000",
+      "pagos": 7,
+      "sinConfirmar": 3
+    },
+    "plan": {
+      "usados": 330,
+      "limite": 400
+    },
+    "porRevisar": {
+      "x": 16,
+      "y": 234,
+      "w": 208,
+      "h": 48
+    }
+  },
+  "panel-por-revisar-escritorio": {
+    "ambiguo": {
+      "x": 297,
+      "y": 342,
+      "w": 168,
+      "h": 18
+    },
+    "ilegible": {
+      "x": 297,
+      "y": 210,
+      "w": 164,
+      "h": 18
+    }
+  }
+}

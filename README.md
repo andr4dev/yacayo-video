@@ -1,14 +1,18 @@
 # Video promocional de YaCayó
 
-Remotion 4 · 30 fps · 32 s · 120 BPM. Dos composiciones: `YacayoVertical` (1080 × 1920) y
-`YacayoHorizontal` (1920 × 1080, celular a un lado y texto al otro).
+Remotion 4 · 30 fps · 44,5 s · 120 BPM. Una composición, `YacayoHorizontal` (1920 × 1080: el
+celular o el panel de escritorio a un lado y el texto al otro), para la hackatón de Google: el
+asistente del panel (Gemini en Vertex AI) va de 16,5 s a 34 s y la placa de Gemini, de 34 s a 39 s.
+El asistente todavía no existe en el front: se dibuja en `src/componentes/Asistente.tsx`, y sus
+textos y cifras salen de `src/asistente.ts` (calculadas desde `mocks/datos.ts` del panel).
 
 ## Comandos
 
 | Comando | Qué hace |
 |---|---|
 | `npm run dev` | Abre Remotion Studio en http://localhost:3000 |
-| `npm run render` | Renderiza `out/yacayo-demo-vertical.mp4` y `out/yacayo-demo-horizontal.mp4` |
+| `npm run render` | Renderiza `out/yacayo-demo-horizontal.mp4` |
+| `npm run capturas:asistente` | Toma las capturas del panel para el asistente (`panel-*.png`, con el panel corriendo) |
 | `npm run capturas` | Vuelve a tomar las capturas del panel (ver abajo) |
 | `node scripts/fotogramas.mjs YacayoVertical 0 150 230` | Saca fotogramas sueltos a `out/fotogramas/` |
 
@@ -36,4 +40,5 @@ elemento, para los zooms y las líneas de las tarjetas). Para volver a tomarlas:
 3. Prototipo congelado (para *Por revisar*, que en el panel aún es un marcador), desde
    `yacayo-src/front/prototipo`: `npm install` y
    `node node_modules/vite/bin/vite.js --config ../../../scripts/prototipo.vite.config.mjs` (puerto 5180).
-4. `npm run capturas`.
+4. `npm run capturas` (las aprobadas) o `npm run capturas:asistente` (Inicio y Por revisar del panel de main,
+   en celular y escritorio). Si la tarjeta de Inicio no cuadra con el chat, el video no arranca.

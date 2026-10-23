@@ -1,26 +1,15 @@
 import type React from "react";
-import { AbsoluteFill, Composition, Folder, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Composition, Folder } from "remotion";
 import { CountUp } from "./componentes/CountUp";
 import { FeatureCard } from "./componentes/FeatureCard";
 import { KineticText } from "./componentes/KineticText";
-import { Phone } from "./componentes/Phone";
-import { PantallaCelular } from "./componentes/Pantallas";
 import { WhatsAppChat } from "./componentes/WhatsAppChat";
-import { DURACION, ESCENAS, FPS } from "./constantes";
-import { LAYOUTS, poseCelular } from "./escenario";
+import { DURACION, FPS } from "./constantes";
 import { YC } from "./marca";
 import { YacayoDemo } from "./YacayoDemo";
 
 export const RemotionRoot: React.FC = () => (
   <>
-    <Composition
-      id="YacayoVertical"
-      component={YacayoDemo}
-      durationInFrames={DURACION}
-      fps={FPS}
-      width={1080}
-      height={1920}
-    />
     <Composition
       id="YacayoHorizontal"
       component={YacayoDemo}
@@ -44,7 +33,6 @@ export const RemotionRoot: React.FC = () => (
       <Composition id="FeatureCard" component={FeatureCardDemo} durationInFrames={60} fps={FPS} width={1080} height={600} />
       <Composition id="CountUp" component={CountUpDemo} durationInFrames={60} fps={FPS} width={1080} height={400} />
       <Composition id="WhatsAppChat" component={WhatsAppChat} durationInFrames={DURACION} fps={FPS} width={390} height={844} />
-      <Composition id="Phone" component={PhoneDemo} durationInFrames={DURACION} fps={FPS} width={1080} height={1920} />
     </Folder>
   </>
 );
@@ -80,17 +68,3 @@ const CountUpDemo: React.FC = () => (
     <CountUp desde={542_000} hasta={614_000} duracion={40} style={{ fontSize: 120, color: YC.texto }} />
   </Lienzo>
 );
-
-const PhoneDemo: React.FC = () => {
-  const frame = useCurrentFrame();
-  const L = LAYOUTS.vertical;
-  return (
-    <Lienzo>
-      <AbsoluteFill style={{ perspective: L.perspectiva, perspectiveOrigin: `${L.celular.cx}px ${L.celular.cy}px` }}>
-        <Phone pose={poseCelular(Math.max(frame, ESCENAS.foto.desde), L)} k={L.celular.k}>
-          <PantallaCelular />
-        </Phone>
-      </AbsoluteFill>
-    </Lienzo>
-  );
-};
